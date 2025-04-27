@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whippet Runner</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f7f7f7;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 300px;
+            border: 2px solid #333;
+            overflow: hidden;
+            background-color: #e6f7ff;
+        }
+        
+        #whippet {
+            position: absolute;
+            left: 50px;
+            bottom: 0;
+            width: 80px;
+            height: 60px;
+            text-align: center;
+        }
+        
+        .obstacle {
+            position: absolute;
+            bottom: 0;
+            width: 20px;
+            height: 40px;
+            background-color: #663300;
+        }
+        
+        .cloud {
+            position: absolute;
+            font-size: 20px;
+            color: #a9a9a9;
+        }
+        
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 5px;
+            background-color: #8B4513;
+        }
+        
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 18px;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            display: none;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        #start-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        #debug {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Score: 0</div>
+        <div id="whippet">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60" width="80" height="60">
+                <!-- Whippet body -->
+                <ellipse cx="35" cy="35" rx="30" ry="10" fill="#d2b48c" stroke="#000" stroke-width="1" />
+                
+                <!-- Neck and head -->
+                <path d="M65,35 Q60,25 50,20 Q40,15 35,20" fill="none" stroke="#000" stroke-width="1" />
+                <ellipse cx="50" cy="20" rx="15" ry="8" fill="#d2b48c" stroke="#000" stroke-width="1" />
+                
+                <!-- Face -->
+                <ellipse cx="60" cy="20" rx="5" ry="3" fill="#d2b48c" stroke="#000" stroke-width="1" />
+                <circle cx="63" cy="19" r="1" fill="#000" /> <!-- Eye -->
+                <path d="M65,21 Q63,22 61,21" fill="none" stroke="#000" stroke-width="0.5" /> <!-- Mouth -->
+                
+                <!-- Ears -->
+                <path d="M57,15 Q55,10 53,15" fill="#d2b48c" stroke="#000" stroke-width="0.5" />
+                <path d="M48,15 Q46,10 44,15" fill="#d2b48c" stroke="#000" stroke-width="0.5" />
+                
+                <!-- Legs -->
+                <path d="M45,45 L45,55" stroke="#d2b48c" stroke-width="2" />
+                <path d="M25,45 L25,55" stroke="#d2b48c" stroke-width="2" />
+                <path d="M35,45 L35,55" stroke="#d2b48c" stroke-width="2" />
+                <path d="M15,45 L15,55" stroke="#d2b48c" stroke-width="2" />
+                
+                <!-- Tail -->
+                <path d="M5,35 Q0,30 5,25" fill="none" stroke="#d2b48c" stroke-width="2" />
+            </svg>
+        </div>
+        <div id="ground"></div>
+        <div id="game-over">GAME OVER</div>
+        <div id="start-message">Press Space or tap to start<br>Press Space or tap to jump</div>
+        <div id="debug"></div>
+    </div>
+
+    <script>
+        // Game elements
+        const gameContainer = document.getElementById('game-container');
+        const whippetElement = document.getElementById('whippet');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('game-over');
+        const startMessageElement = document.getElementById('start-message');
+        const debugElement = document.getElementById('debug');
+        
+        // Game state
+        let isRunning = false;
+        let score = 0;
+        let speed = 5;
+        let jumping = false;
+        let jumpHeight = 100;
+        let jumpCount = 0;
+        let gravity = 0.6;
+        let posY = 0;
+        let velY = 0;
+        let obstacles = [];
+        let clouds = [];
+        let obstacleInterval = 2000;
+        let lastObstacleTime = 0;
+        let animationFrameId;
+        let legFrame = 0;
+        let legFrameCounter = 0;
+        
+        // Game dimensions
+        const containerWidth = gameContainer.offsetWidth;
+        const containerHeight = gameContainer.offsetHeight;
+        
+        // Key event handlers
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        gameContainer.addEventListener('touchstart', handleTap);
+        
+        function handleKeyDown(event) {
+            if (event.key === ' ' || event.code === 'Space') {
+                event.preventDefault();
+                
+                // Debug output
+                debugElement.textContent = "Space pressed!";
+                
+                if (!isRunning) {
+                    startGame();
+                } else {
+                    jump();
+                }
+            }
+        }
+        
+        function handleKeyUp(event) {
+            if (event.key === ' ' || event.code === 'Space') {
+                // Nothing needed here, but keeping for potential future use
+            }
+        }
+        
+        function handleTap() {
+            if (!isRunning) {
+                startGame();
+            } else {
+                jump();
+            }
+        }
+        
+        // Game functions
+        function init() {
+            whippetElement.style.bottom = '0px';
+            posY = 0;
+            scoreElement.textContent = 'Score: 0';
+            gameOverElement.style.display = 'none';
+            startMessageElement.style.display = 'block';
+            debugElement.textContent = '';
+        }
+        
+        function startGame() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            score = 0;
+            posY = 0;
+            velY = 0;
+            jumping = false;
+            obstacles = [];
+            clouds = [];
+            lastObstacleTime = 0;
+            speed = 5;
+            
+            // Clean up existing elements
+            document.querySelectorAll('.obstacle').forEach(obs => obs.remove());
+            document.querySelectorAll('.cloud').forEach(cloud => cloud.remove());
+            
+            startMessageElement.style.display = 'none';
+            debugElement.textContent = 'Game started';
+            
+            // Start game loop
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        function jump() {
+            if (jumping) return;
+            
+            jumping = true;
+            velY = 12;
+            debugElement.textContent = "Jump initiated! Velocity: " + velY;
+        }
+        
+        function gameLoop(timestamp) {
+            if (!isRunning) return;
+            
+            // Create obstacles
+            if (timestamp - lastObstacleTime > obstacleInterval) {
+                createObstacle();
+                lastObstacleTime = timestamp;
+                obstacleInterval = Math.max(500, obstacleInterval - 50);
+            }
+            
+            // Create clouds
+            if (Math.random() < 0.01) {
+                createCloud();
+            }
+            
+            // Update character position (jumping physics)
+            updateCharacterPosition();
+            
+            // Animate running legs
+            animateWhippet();
+            
+            // Move and check obstacles
+            updateObstacles();
+            
+            // Move clouds
+            updateClouds();
+            
+            // Continue game loop
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        function animateWhippet() {
+            // Simple leg animation
+            if (!jumping) {
+                legFrameCounter++;
+                if (legFrameCounter > 5) {
+                    legFrameCounter = 0;
+                    legFrame = (legFrame + 1) % 4;
+                    
+                    // Get all leg paths
+                    const legs = whippetElement.querySelectorAll('path[stroke="#d2b48c"][stroke-width="2"]');
+                    
+                    // Animate based on the current frame
+                    if (legs.length >= 4) {
+                        if (legFrame === 0) {
+                            legs[0].setAttribute('d', 'M35,45 L35,55');
+                            legs[1].setAttribute('d', 'M55,45 L55,55');
+                            legs[2].setAttribute('d', 'M45,45 L45,55');
+                            legs[3].setAttribute('d', 'M65,45 L65,55');
+                        } else if (legFrame === 1) {
+                            legs[0].setAttribute('d', 'M35,45 L37,55');
+                            legs[1].setAttribute('d', 'M55,45 L53,55');
+                            legs[2].setAttribute('d', 'M45,45 L47,55');
+                            legs[3].setAttribute('d', 'M65,45 L63,55');
+                        } else if (legFrame === 2) {
+                            legs[0].setAttribute('d', 'M35,45 L35,55');
+                            legs[1].setAttribute('d', 'M55,45 L55,55');
+                            legs[2].setAttribute('d', 'M45,45 L45,55');
+                            legs[3].setAttribute('d', 'M65,45 L65,55');
+                        } else {
+                            legs[0].setAttribute('d', 'M35,45 L33,55');
+                            legs[1].setAttribute('d', 'M55,45 L57,55');
+                            legs[2].setAttribute('d', 'M45,45 L43,55');
+                            legs[3].setAttribute('d', 'M65,45 L67,55');
+                        }
+                    }
+                }
+            } else {
+                // Jumping pose
+                const legs = whippetElement.querySelectorAll('path[stroke="#d2b48c"][stroke-width="2"]');
+                if (legs.length >= 4) {
+                    legs[0].setAttribute('d', 'M35,45 L33,50');
+                    legs[1].setAttribute('d', 'M55,45 L57,50');
+                    legs[2].setAttribute('d', 'M45,45 L43,50');
+                    legs[3].setAttribute('d', 'M65,45 L67,50');
+                }
+            }
+        }
+        
+        function updateCharacterPosition() {
+            if (jumping) {
+                // Apply gravity
+                velY -= gravity;
+                posY += velY;
+                
+                // Debug info
+                debugElement.textContent = `Jumping: Y=${posY.toFixed(1)}, Vel=${velY.toFixed(1)}`;
+                
+                // Check if landed
+                if (posY <= 0) {
+                    posY = 0;
+                    velY = 0;
+                    jumping = false;
+                    debugElement.textContent = "Landed";
+                }
+                
+                // Update visual position
+                whippetElement.style.bottom = posY + 'px';
+            }
+        }
+        
+        function updateObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                const obstacleElement = document.getElementById(obstacle.id);
+                
+                // Move obstacle
+                obstacle.x -= speed;
+                obstacleElement.style.left = obstacle.x + 'px';
+                
+                // Remove if off-screen
+                if (obstacle.x < -50) {
+                    obstacleElement.remove();
+                    obstacles.splice(i, 1);
+                    score += 1;
+                    scoreElement.textContent = 'Score: ' + score;
+                    
+                    // Increase speed every 10 points
+                    if (score % 10 === 0) {
+                        speed += 0.5;
+                    }
+                    continue;
+                }
+                
+                // Check collision
+                if (detectCollision(whippetElement, obstacleElement)) {
+                    gameOver();
+                    return;
+                }
+            }
+        }
+        
+        function updateClouds() {
+            for (let i = clouds.length - 1; i >= 0; i--) {
+                const cloud = clouds[i];
+                const cloudElement = document.getElementById(cloud.id);
+                
+                // Move cloud
+                cloud.x -= speed * 0.3;
+                cloudElement.style.left = cloud.x + 'px';
+                
+                // Remove if off-screen
+                if (cloud.x < -50) {
+                    cloudElement.remove();
+                    clouds.splice(i, 1);
+                }
+            }
+        }
+        
+        function createObstacle() {
+            const obstacleId = 'obstacle-' + Date.now();
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.id = obstacleId;
+            
+            // Random obstacle type (cactus or rock)
+            const isRock = Math.random() > 0.5;
+            
+            if (isRock) {
+                // Create a rock
+                obstacle.style.height = Math.floor(Math.random() * 20) + 20 + 'px';
+                obstacle.style.width = Math.floor(Math.random() * 20) + 20 + 'px';
+                obstacle.style.borderRadius = '50%';
+            } else {
+                // Create a cactus
+                obstacle.style.height = Math.floor(Math.random() * 30) + 30 + 'px';
+                obstacle.style.width = '15px';
+                // Add cactus arms
+                if (Math.random() > 0.5) {
+                    obstacle.style.borderRight = '10px solid transparent';
+                    obstacle.style.borderLeft = '10px solid transparent';
+                }
+            }
+            
+            // Set position
+            const x = containerWidth;
+            obstacle.style.left = x + 'px';
+            
+            gameContainer.appendChild(obstacle);
+            obstacles.push({ id: obstacleId, x: x });
+        }
+        
+        function createCloud() {
+            const cloudId = 'cloud-' + Date.now();
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+            cloud.id = cloudId;
+            cloud.textContent = '☁️';
+            
+            // Set position
+            const x = containerWidth;
+            const y = Math.floor(Math.random() * 150) + 50;
+            cloud.style.left = x + 'px';
+            cloud.style.top = y + 'px';
+            
+            gameContainer.appendChild(cloud);
+            clouds.push({ id: cloudId, x: x });
+        }
+        
+        function detectCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            
+            // Make collision detection a bit more forgiving
+            const collisionMargin = 10;
+            
+            return !(
+                rect1.right - collisionMargin < rect2.left + collisionMargin ||
+                rect1.left + collisionMargin > rect2.right - collisionMargin ||
+                rect1.bottom - collisionMargin < rect2.top + collisionMargin ||
+                rect1.top + collisionMargin > rect2.bottom - collisionMargin
+            );
+        }
+        
+        function gameOver() {
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            gameOverElement.style.display = 'block';
+            debugElement.textContent = "Game Over";
+            
+            // Reset after delay
+            setTimeout(() => {
+                init();
+            }, 2000);
+        }
+        
+        // Initialize game
+        init();
+    </script>
+</body>
+</html>

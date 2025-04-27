@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unicorn Runner</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f7f7f7;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 300px;
+            border: 2px solid #6a5acd;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #e0f7ff 0%, #b5e6ff 100%);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        #unicorn {
+            position: absolute;
+            left: 50px;
+            bottom: 0;
+            width: 100px;
+            height: 80px;
+            text-align: center;
+        }
+        
+        .obstacle {
+            position: absolute;
+            bottom: 0;
+            width: 20px;
+            height: 40px;
+            background-color: #663300;
+        }
+        
+        .rainbow {
+            position: absolute;
+            height: 3px;
+            background: linear-gradient(to right, violet, indigo, blue, green, yellow, orange, red);
+            opacity: 0.7;
+        }
+        
+        .star {
+            position: absolute;
+            font-size: 15px;
+            color: #FFD700;
+            animation: twinkle 1s infinite alternate;
+        }
+        
+        @keyframes twinkle {
+            from {opacity: 0.5;}
+            to {opacity: 1;}
+        }
+        
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to right, #7cfc00, #98FB98, #7cfc00);
+        }
+        
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 18px;
+            color: #6a5acd;
+            font-weight: bold;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            display: none;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: #6a5acd;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px #FFF;
+            box-shadow: 0 0 20px rgba(106, 90, 205, 0.5);
+        }
+        
+        #start-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: #6a5acd;
+            box-shadow: 0 0 20px rgba(106, 90, 205, 0.3);
+        }
+
+        #debug {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Score: 0</div>
+        <div id="unicorn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100" height="80">
+                <!-- Unicorn body -->
+                <ellipse cx="40" cy="45" rx="30" ry="12" fill="#f8f0ff" stroke="#d8c0ff" stroke-width="1" />
+                
+                <!-- Neck and head -->
+                <path d="M65,40 Q60,30 55,25 Q50,20 45,25" fill="#f8f0ff" stroke="#d8c0ff" stroke-width="1" />
+                <ellipse cx="55" cy="25" rx="15" ry="10" fill="#f8f0ff" stroke="#d8c0ff" stroke-width="1" />
+                
+                <!-- Mane -->
+                <path d="M35,25 Q40,15 45,25 Q50,15 55,25 Q60,15 65,25" fill="#FF9AEE" stroke="none" />
+                
+                <!-- Horn -->
+                <path d="M60,15 L70,5" stroke="#FFD700" stroke-width="3" stroke-linecap="round" />
+                
+                <!-- Face -->
+                <circle cx="65" cy="25" r="1.5" fill="#333" /> <!-- Eye -->
+                <path d="M67,30 Q65,31 63,30" fill="none" stroke="#333" stroke-width="0.5" /> <!-- Mouth -->
+                
+                <!-- Legs -->
+                <path d="M50,57 L50,70" stroke="#f8f0ff" stroke-width="3" stroke-linecap="round" id="leg1" />
+                <path d="M30,57 L30,70" stroke="#f8f0ff" stroke-width="3" stroke-linecap="round" id="leg2" />
+                <path d="M40,57 L40,70" stroke="#f8f0ff" stroke-width="3" stroke-linecap="round" id="leg3" />
+                <path d="M20,57 L20,70" stroke="#f8f0ff" stroke-width="3" stroke-linecap="round" id="leg4" />
+                
+                <!-- Tail -->
+                <path d="M10,45 Q5,40 8,35 Q12,30 8,25" fill="none" stroke="#FF9AEE" stroke-width="3" stroke-linecap="round" />
+            </svg>
+        </div>
+        <div id="ground"></div>
+        <div id="game-over">✨ GAME OVER ✨</div>
+        <div id="start-message">🦄 Press Space or tap to start 🦄<br>Press Space or tap to jump</div>
+        <div id="debug"></div>
+    </div>
+
+    <script>
+        // Game elements
+        const gameContainer = document.getElementById('game-container');
+        const unicornElement = document.getElementById('unicorn');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('game-over');
+        const startMessageElement = document.getElementById('start-message');
+        const debugElement = document.getElementById('debug');
+        
+        // Game state
+        let isRunning = false;
+        let score = 0;
+        let speed = 5;
+        let jumping = false;
+        let jumpHeight = 100;
+        let jumpCount = 0;
+        let gravity = 0.6;
+        let posY = 0;
+        let velY = 0;
+        let obstacles = [];
+        let rainbows = [];
+        let stars = [];
+        let obstacleInterval = 2000;
+        let lastObstacleTime = 0;
+        let animationFrameId;
+        let legFrame = 0;
+        let legFrameCounter = 0;
+        let rainbowCounter = 0;
+        
+        // Game dimensions
+        const containerWidth = gameContainer.offsetWidth;
+        const containerHeight = gameContainer.offsetHeight;
+        
+        // Key event handlers
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        gameContainer.addEventListener('touchstart', handleTap);
+        
+        function handleKeyDown(event) {
+            if (event.key === ' ' || event.code === 'Space') {
+                event.preventDefault();
+                
+                // Debug output
+                debugElement.textContent = "Space pressed!";
+                
+                if (!isRunning) {
+                    startGame();
+                } else {
+                    jump();
+                }
+            }
+        }
+        
+        function handleKeyUp(event) {
+            if (event.key === ' ' || event.code === 'Space') {
+                // Nothing needed here, but keeping for potential future use
+            }
+        }
+        
+        function handleTap() {
+            if (!isRunning) {
+                startGame();
+            } else {
+                jump();
+            }
+        }
+        
+        // Game functions
+        function init() {
+            unicornElement.style.bottom = '0px';
+            posY = 0;
+            scoreElement.textContent = 'Score: 0';
+            gameOverElement.style.display = 'none';
+            startMessageElement.style.display = 'block';
+            debugElement.textContent = '';
+        }
+        
+        function startGame() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            score = 0;
+            posY = 0;
+            velY = 0;
+            jumping = false;
+            obstacles = [];
+            rainbows = [];
+            stars = [];
+            lastObstacleTime = 0;
+            speed = 5;
+            
+            // Clean up existing elements
+            document.querySelectorAll('.obstacle').forEach(obs => obs.remove());
+            document.querySelectorAll('.rainbow').forEach(rainbow => rainbow.remove());
+            document.querySelectorAll('.star').forEach(star => star.remove());
+            
+            startMessageElement.style.display = 'none';
+            debugElement.textContent = 'Game started';
+            
+            // Start game loop
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        function jump() {
+            if (jumping) return;
+            
+            jumping = true;
+            velY = 12;
+            debugElement.textContent = "Jump initiated! Velocity: " + velY;
+            createRainbow();
+        }
+        
+        function gameLoop(timestamp) {
+            if (!isRunning) return;
+            
+            // Create obstacles
+            if (timestamp - lastObstacleTime > obstacleInterval) {
+                createObstacle();
+                lastObstacleTime = timestamp;
+                obstacleInterval = Math.max(500, obstacleInterval - 50);
+            }
+            
+            // Create stars
+            if (Math.random() < 0.01) {
+                createStar();
+            }
+            
+            // Update character position (jumping physics)
+            updateCharacterPosition();
+            
+            // Animate unicorn
+            animateUnicorn();
+            
+            // Move and check obstacles
+            updateObstacles();
+            
+            // Move rainbows
+            updateRainbows();
+            
+            // Move stars
+            updateStars();
+            
+            // Continue game loop
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        function animateUnicorn() {
+            // Simple leg animation
+            if (!jumping) {
+                legFrameCounter++;
+                if (legFrameCounter > 5) {
+                    legFrameCounter = 0;
+                    legFrame = (legFrame + 1) % 4;
+                    
+                    // Get all leg paths
+                    const leg1 = document.getElementById('leg1');
+                    const leg2 = document.getElementById('leg2');
+                    const leg3 = document.getElementById('leg3');
+                    const leg4 = document.getElementById('leg4');
+                    
+                    // Animate based on the current frame
+                    if (leg1 && leg2 && leg3 && leg4) {
+                        if (legFrame === 0) {
+                            leg1.setAttribute('d', 'M50,57 L50,70');
+                            leg2.setAttribute('d', 'M30,57 L30,70');
+                            leg3.setAttribute('d', 'M40,57 L40,70');
+                            leg4.setAttribute('d', 'M20,57 L20,70');
+                        } else if (legFrame === 1) {
+                            leg1.setAttribute('d', 'M50,57 L48,70');
+                            leg2.setAttribute('d', 'M30,57 L32,70');
+                            leg3.setAttribute('d', 'M40,57 L38,70');
+                            leg4.setAttribute('d', 'M20,57 L22,70');
+                        } else if (legFrame === 2) {
+                            leg1.setAttribute('d', 'M50,57 L50,70');
+                            leg2.setAttribute('d', 'M30,57 L30,70');
+                            leg3.setAttribute('d', 'M40,57 L40,70');
+                            leg4.setAttribute('d', 'M20,57 L20,70');
+                        } else {
+                            leg1.setAttribute('d', 'M50,57 L52,70');
+                            leg2.setAttribute('d', 'M30,57 L28,70');
+                            leg3.setAttribute('d', 'M40,57 L42,70');
+                            leg4.setAttribute('d', 'M20,57 L18,70');
+                        }
+                    }
+                }
+            } else {
+                // Jumping pose
+                const leg1 = document.getElementById('leg1');
+                const leg2 = document.getElementById('leg2');
+                const leg3 = document.getElementById('leg3');
+                const leg4 = document.getElementById('leg4');
+                
+                if (leg1 && leg2 && leg3 && leg4) {
+                    leg1.setAttribute('d', 'M50,57 L52,65');
+                    leg2.setAttribute('d', 'M30,57 L28,65');
+                    leg3.setAttribute('d', 'M40,57 L42,65');
+                    leg4.setAttribute('d', 'M20,57 L18,65');
+                }
+            }
+            
+            // Rainbow trail when jumping
+            rainbowCounter++;
+            if (jumping && rainbowCounter % 10 === 0) {
+                createRainbow();
+            }
+        }
+        
+        function updateCharacterPosition() {
+            if (jumping) {
+                // Apply gravity
+                velY -= gravity;
+                posY += velY;
+                
+                // Debug info
+                debugElement.textContent = `Jumping: Y=${posY.toFixed(1)}, Vel=${velY.toFixed(1)}`;
+                
+                // Check if landed
+                if (posY <= 0) {
+                    posY = 0;
+                    velY = 0;
+                    jumping = false;
+                    debugElement.textContent = "Landed";
+                }
+                
+                // Update visual position
+                unicornElement.style.bottom = posY + 'px';
+            }
+        }
+        
+        function createRainbow() {
+            const rainbowId = 'rainbow-' + Date.now();
+            const rainbow = document.createElement('div');
+            rainbow.className = 'rainbow';
+            rainbow.id = rainbowId;
+            
+            // Set position based on unicorn
+            const unicornRect = unicornElement.getBoundingClientRect();
+            const gameRect = gameContainer.getBoundingClientRect();
+            
+            const x = unicornRect.left - gameRect.left;
+            const y = gameRect.height - (unicornRect.top - gameRect.top + unicornRect.height / 2);
+            const width = 50;
+            
+            rainbow.style.left = x + 'px';
+            rainbow.style.bottom = y + 'px';
+            rainbow.style.width = width + 'px';
+            
+            gameContainer.appendChild(rainbow);
+            rainbows.push({ id: rainbowId, x: x, width: width });
+        }
+        
+        function updateRainbows() {
+            for (let i = rainbows.length - 1; i >= 0; i--) {
+                const rainbow = rainbows[i];
+                const rainbowElement = document.getElementById(rainbow.id);
+                
+                // Move rainbow
+                rainbow.x -= speed;
+                if (rainbowElement) {
+                    rainbowElement.style.left = rainbow.x + 'px';
+                    
+                    // Fade out
+                    const opacity = parseFloat(rainbowElement.style.opacity || 1);
+                    rainbowElement.style.opacity = Math.max(0, opacity - 0.01);
+                    
+                    // Remove if off-screen or fully transparent
+                    if (rainbow.x + rainbow.width < 0 || opacity <= 0.05) {
+                        rainbowElement.remove();
+                        rainbows.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
+        function createStar() {
+            const starId = 'star-' + Date.now();
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.id = starId;
+            star.textContent = '✦';
+            
+            // Set position
+            const x = containerWidth;
+            const y = Math.floor(Math.random() * 200) + 50;
+            star.style.left = x + 'px';
+            star.style.top = y + 'px';
+            
+            gameContainer.appendChild(star);
+            stars.push({ id: starId, x: x });
+        }
+        
+        function updateStars() {
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const star = stars[i];
+                const starElement = document.getElementById(star.id);
+                
+                // Move star
+                star.x -= speed * 0.3;
+                if (starElement) {
+                    starElement.style.left = star.x + 'px';
+                    
+                    // Remove if off-screen
+                    if (star.x < -20) {
+                        starElement.remove();
+                        stars.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
+        function updateObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                const obstacleElement = document.getElementById(obstacle.id);
+                
+                // Move obstacle
+                obstacle.x -= speed;
+                if (obstacleElement) {
+                    obstacleElement.style.left = obstacle.x + 'px';
+                    
+                    // Remove if off-screen
+                    if (obstacle.x < -50) {
+                        obstacleElement.remove();
+                        obstacles.splice(i, 1);
+                        score += 1;
+                        scoreElement.textContent = 'Score: ' + score;
+                        
+                        // Increase speed every 10 points
+                        if (score % 10 === 0) {
+                            speed += 0.5;
+                        }
+                        continue;
+                    }
+                    
+                    // Check collision
+                    if (detectCollision(unicornElement, obstacleElement)) {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        function createObstacle() {
+            const obstacleId = 'obstacle-' + Date.now();
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.id = obstacleId;
+            
+            // Random obstacle type
+            const obstacleType = Math.floor(Math.random() * 3);
+            
+            if (obstacleType === 0) {
+                // Create a crystal
+                obstacle.style.height = Math.floor(Math.random() * 20) + 20 + 'px';
+                obstacle.style.width = Math.floor(Math.random() * 15) + 15 + 'px';
+                obstacle.style.background = 'linear-gradient(135deg, #8a2be2, #9370db)';
+                obstacle.style.clipPath = 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+            } else if (obstacleType === 1) {
+                // Create a cloud
+                obstacle.style.height = Math.floor(Math.random() * 20) + 30 + 'px';
+                obstacle.style.width = Math.floor(Math.random() * 30) + 30 + 'px';
+                obstacle.style.background = 'white';
+                obstacle.style.borderRadius = '50%';
+                obstacle.style.boxShadow = '10px 10px 0 -5px white, -10px 10px 0 -5px white';
+            } else {
+                // Create a mushroom
+                obstacle.style.width = '25px';
+                obstacle.style.height = Math.floor(Math.random() * 20) + 30 + 'px';
+                obstacle.style.background = 'linear-gradient(to bottom, #FF6B6B 0%, #FF6B6B 40%, #855E42 40%, #855E42 100%)';
+                obstacle.style.borderRadius = '50% 50% 0 0';
+            }
+            
+            // Set position
+            const x = containerWidth;
+            obstacle.style.left = x + 'px';
+            
+            gameContainer.appendChild(obstacle);
+            obstacles.push({ id: obstacleId, x: x });
+        }
+        
+        function detectCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            
+            // Make collision detection a bit more forgiving
+            const collisionMargin = 10;
+            
+            return !(
+                rect1.right - collisionMargin < rect2.left + collisionMargin ||
+                rect1.left + collisionMargin > rect2.right - collisionMargin ||
+                rect1.bottom - collisionMargin < rect2.top + collisionMargin ||
+                rect1.top + collisionMargin > rect2.bottom - collisionMargin
+            );
+        }
+        
+        function gameOver() {
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            gameOverElement.style.display = 'block';
+            debugElement.textContent = "Game Over";
+            
+            // Create a burst of stars
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const starBurst = document.createElement('div');
+                    starBurst.className = 'star';
+                    starBurst.textContent = '✦';
+                    starBurst.style.left = (Math.random() * containerWidth) + 'px';
+                    starBurst.style.top = (Math.random() * containerHeight) + 'px';
+                    starBurst.style.fontSize = (Math.random() * 10 + 10) + 'px';
+                    gameContainer.appendChild(starBurst);
+                    
+                    // Remove after animation
+                    setTimeout(() => {
+                        starBurst.remove();
+                    }, 2000);
+                }, i * 100);
+            }
+            
+            // Reset after delay
+            setTimeout(() => {
+                init();
+            }, 3000);
+        }
+        
+        // Initialize game
+        init();
+    </script>
+</body>
+</html>
