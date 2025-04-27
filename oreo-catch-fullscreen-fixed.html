@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oreo Catch - Full Screen Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(180deg, #0073bd, #004b7d);
+            overflow: hidden;
+        }
+        
+        #logo {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 48px;
+            color: white;
+            z-index: 20;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 20px;
+            border-radius: 20px;
+        }
+        
+        #timer-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 20px;
+            border-radius: 20px;
+        }
+        
+        #player {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 70px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #player::after {
+            content: "MILK";
+            color: #0073bd;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        
+        .item {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            z-index: 5;
+        }
+        
+        .oreo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .bomb {
+            background-color: #ff0000;
+            border-radius: 50%;
+        }
+        
+        .oreo svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(0deg);
+            animation: spin 8s infinite linear;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.8));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            text-align: center;
+        }
+        
+        #start-screen h1 {
+            font-size: 64px;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+        }
+        
+        #start-screen p {
+            font-size: 24px;
+            margin-bottom: 15px;
+            max-width: 600px;
+            line-height: 1.4;
+        }
+        
+        #tagline {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 30px 0;
+            color: #0073bd;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            background-color: #0073bd;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn:hover {
+            background-color: #005a94;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.9));
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 300;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        #game-over h2 {
+            font-size: 64px;
+            margin-bottom: 30px;
+        }
+        
+        #final-score {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+        
+        #result-message {
+            font-size: 28px;
+            margin-bottom: 40px;
+            max-width: 700px;
+            line-height: 1.4;
+        }
+        
+        .progress-container {
+            width: 80%;
+            max-width: 600px;
+            height: 30px;
+            background-color: #333;
+            border-radius: 15px;
+            margin: 30px auto;
+            overflow: hidden;
+        }
+        
+        #progress-bar {
+            height: 100%;
+            background-color: #0073bd;
+            border-radius: 15px;
+            width: 0%;
+            transition: width 1s;
+        }
+        
+        /* Oreo image at the start screen */
+        #oreo-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 20px 0;
+            animation: float 3s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        /* Footer with branding */
+        #footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 30;
+        }
+        
+        #brand-info {
+            color: white;
+            font-size: 16px;
+        }
+        
+        #cta-button {
+            padding: 8px 20px;
+            background-color: #0073bd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        #cta-button:hover {
+            background-color: #005a94;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #logo { font-size: 36px; top: 15px; }
+            #score-display { font-size: 20px; top: 70px; }
+            #timer-display { font-size: 20px; right: 15px; top: 15px; }
+            #player { width: 90px; height: 60px; }
+            #player::after { font-size: 18px; }
+            .item { width: 50px; height: 50px; }
+            #start-screen h1 { font-size: 48px; }
+            #start-screen p { font-size: 20px; }
+            #tagline { font-size: 28px; }
+            .btn { padding: 12px 30px; font-size: 20px; }
+            #game-over h2 { font-size: 48px; }
+            #final-score { font-size: 28px; }
+            #result-message { font-size: 22px; }
+            #oreo-container { width: 120px; height: 120px; }
+        }
+        
+        @media (max-width: 480px) {
+            #logo { font-size: 30px; }
+            #score-display { font-size: 18px; padding: 5px 15px; }
+            #timer-display { font-size: 18px; padding: 5px 15px; }
+            #player { width: 80px; height: 50px; bottom: 60px; }
+            #player::after { font-size: 16px; }
+            .item { width: 40px; height: 40px; }
+            #start-screen h1 { font-size: 36px; margin-bottom: 20px; }
+            #start-screen p { font-size: 16px; max-width: 90%; }
+            #tagline { font-size: 24px; margin: 20px 0; }
+            .btn { padding: 10px 25px; font-size: 18px; }
+            #game-over h2 { font-size: 36px; margin-bottom: 20px; }
+            #final-score { font-size: 24px; margin-bottom: 20px; }
+            #result-message { font-size: 18px; margin-bottom: 30px; }
+            .progress-container { height: 20px; }
+            #oreo-container { width: 100px; height: 100px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="logo">OREO</div>
+        <div id="score-display">Score: <span id="score">0</span></div>
+        <div id="timer-display">Time: <span id="timer">60</span>s</div>
+        
+        <div id="player"></div>
+        
+        <div id="start-screen">
+            <h1>Oreo Catch</h1>
+            <p>Catch the falling Oreo cookies with your milk glass!</p>
+            <p>Move your milk glass using mouse, touch, or arrow keys</p>
+            <p>Avoid the red bombs or lose points</p>
+            
+            <div id="oreo-container"></div>
+            
+            <p id="tagline">TWIST, LICK, DUNK!</p>
+            
+            <button id="start-btn" class="btn">START GAME</button>
+        </div>
+        
+        <div id="game-over">
+            <h2>Game Over!</h2>
+            <p id="final-score">Your score: 0</p>
+            <div class="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <p id="result-message">Good job!</p>
+            <button id="replay-btn" class="btn">PLAY AGAIN</button>
+            <button id="visit-btn" class="btn">VISIT OREO</button>
+        </div>
+        
+        <div id="footer">
+            <div id="brand-info">OREO © 2025</div>
+            <button id="cta-button">Learn More About Oreo</button>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let score = 0;
+        let gameRunning = false;
+        let gameTime = 0;
+        let maxGameTime = 60; // 60 seconds of gameplay for full experience
+        let playerPosition = { x: 0 };
+        let playerWidth = 100;
+        let containerWidth;
+        let containerHeight;
+        let items = [];
+        let animationFrame;
+        let itemGenerationInterval;
+        let timerInterval;
+        let difficultyInterval;
+        let generationSpeed = 1200; // ms between item generation
+        let itemSpeed = 2; // base speed
+        
+        // DOM elements
+        const gameContainer = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const resultMessage = document.getElementById('result-message');
+        const progressBar = document.getElementById('progress-bar');
+        const replayBtn = document.getElementById('replay-btn');
+        const visitBtn = document.getElementById('visit-btn');
+        const ctaButton = document.getElementById('cta-button');
+        const oreoContainer = document.getElementById('oreo-container');
+        
+        // Oreo SVG template
+        const oreoSvgTemplate = `
+        <svg class="oreo-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+            <!-- Whole cookie (both sides) -->
+            <g id="whole-cookie">
+                <!-- Bottom cookie -->
+                <g id="bottom-cookie">
+                    <circle cx="250" cy="300" r="210" fill="#2a1a14"/>
+                    <circle cx="250" cy="300" r="195" fill="#241811"/>
+                    <!-- Ridges at the edge -->
+                    <g fill="#2a1a14">
+                        <path d="M250 115c-102.5 0-185 82.5-185 185s82.5 185 185 185 185-82.5 185-185-82.5-185-185-185zm0 20c91 0 165 74 165 165s-74 165-165 165S85 391 85 300s74-165 165-165z"/>
+                    </g>
+                </g>
+                
+                <!-- Cream filling -->
+                <path d="M425 300c0 5-1.5 12-3 16.5-25 76-95 109.5-172 109.5s-147-33.5-172-109.5c-1.5-4.5-3-11.5-3-16.5 0-8 1-13 3-17.5 2.5-6 6.5-9 11.5-9h321c5 0 9 3 11.5 9 2 4.5 3 9.5 3 17.5z" fill="#ffffff"/>
+                
+                <!-- Top cookie -->
+                <g id="top-cookie" transform="translate(0, -100)">
+                    <circle cx="250" cy="300" r="210" fill="#2a1a14"/>
+                    <circle cx="250" cy="300" r="195" fill="#241811"/>
+                    
+                    <!-- Decorative patterns -->
+                    <g fill="#2a1a14">
+                        <!-- Ridges at the edge -->
+                        <path d="M250 115c-102.5 0-185 82.5-185 185s82.5 185 185 185 185-82.5 185-185-82.5-185-185-185zm0 20c91 0 165 74 165 165s-74 165-165 165S85 391 85 300s74-165 165-165z"/>
+                        
+                        <!-- Central design -->
+                        <ellipse cx="250" cy="300" rx="75" ry="45"/>
+                        <ellipse cx="250" cy="300" rx="65" ry="35" fill="#241811"/>
+                        
+                        <!-- Flower patterns -->
+                        <g>
+                            <!-- Top flower -->
+                            <path d="M250 200c0 0 25 25 0 40-25 15-40-25-40-25s-15 35 15 40c30 5 35-40 35-40s25 35 0 45c-25 10-45-20-45-20s-10 25 15 30c25 5 30-30 30-30s15 25 0 35c-15 10-35-10-35-10s0 20 15 20c15 0 20-20 20-20"/>
+                            
+                            <!-- Bottom flower -->
+                            <path d="M250 400c0 0 25-25 0-40-25-15-40 25-40 25s-15-35 15-40c30-5 35 40 35 40s25-35 0-45c-25-10-45 20-45 20s-10-25 15-30c25-5 30 30 30 30s15-25 0-35c-15-10-35 10-35 10s0-20 15-20c15 0 20 20 20 20"/>
+                            
+                            <!-- Left flower -->
+                            <path d="M150 300c0 0 25 25 40 0 15-25-25-40-25-40s35-15 40 15c5 30-40 35-40 35s35 25 45 0c10-25-20-45-20-45s25-10 30 15c5 25-30 30-30 30s25 15 35 0c10-15-10-35-10-35s20 0 20 15c0 15-20 20-20 20"/>
+                            
+                            <!-- Right flower -->
+                            <path d="M350 300c0 0-25 25-40 0-15-25 25-40 25-40s-35-15-40 15c-5 30 40 35 40 35s-35 25-45 0c-10-25 20-45 20-45s-25-10-30 15c-5 25 30 30 30 30s-25 15-35 0c-10-15 10-35 10-35s-20 0-20 15c0 15 20 20 20 20"/>
+                        </g>
+                        
+                        <!-- Oreo text in center -->
+                        <g transform="translate(250, 300) scale(0.8)">
+                            <ellipse cx="0" cy="0" rx="60" ry="25" stroke="#2a1a14" stroke-width="5" fill="none"/>
+                            <text x="0" y="7" font-family="Arial" font-size="30" font-weight="bold" text-anchor="middle" fill="#2a1a14">OREO</text>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </svg>`;
+        
+        // Add Oreo to the start screen
+        oreoContainer.innerHTML = oreoSvgTemplate;
+        
+        // Initialize game
+        function init() {
+            // Update dimensions
+            updateDimensions();
+            
+            // Event listeners
+            startBtn.addEventListener('click', startGame);
+            replayBtn.addEventListener('click', resetGame);
+            visitBtn.addEventListener('click', visitStore);
+            ctaButton.addEventListener('click', visitStore);
+            
+            // Controls
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('keydown', handleKeyDown);
+            
+            // Window resize event
+            window.addEventListener('resize', updateDimensions);
+        }
+        
+        // Update dimensions
+        function updateDimensions() {
+            containerWidth = gameContainer.offsetWidth;
+            containerHeight = gameContainer.offsetHeight;
+            playerWidth = player.offsetWidth;
+            
+            // Set initial player position
+            playerPosition.x = (containerWidth - playerWidth) / 2;
+            player.style.left = `${playerPosition.x}px`;
+        }
+        
+        // Start the game
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameRunning = true;
+            score = 0;
+            gameTime = 0;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = maxGameTime;
+            
+            // Reset difficulty
+            generationSpeed = 1200;
+            itemSpeed = 2;
+            
+            // Generate items
+            itemGenerationInterval = setInterval(generateItem, generationSpeed);
+            
+            // Increase difficulty over time
+            difficultyInterval = setInterval(increaseDifficulty, 10000); // Every 10 seconds
+            
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            // Start game loop
+            gameLoop();
+        }
+        
+        // Increase difficulty
+        function increaseDifficulty() {
+            generationSpeed = Math.max(500, generationSpeed - 100);
+            itemSpeed += 0.5;
+            
+            // Update item generation interval
+            clearInterval(itemGenerationInterval);
+            itemGenerationInterval = setInterval(generateItem, generationSpeed);
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            updateItems();
+            checkCollisions();
+            
+            animationFrame = requestAnimationFrame(gameLoop);
+        }
+        
+        // Generate random item
+        function generateItem() {
+            const isOreo = Math.random() > 0.3; // 70% chance for Oreo
+            
+            const item = document.createElement('div');
+            item.className = `item ${isOreo ? 'oreo' : 'bomb'}`;
+            item.dataset.type = isOreo ? 'oreo' : 'bomb';
+            
+            // Add Oreo SVG
+            if (isOreo) {
+                item.innerHTML = oreoSvgTemplate;
+            }
+            
+            const itemWidth = 60;
+            
+            // Random position
+            const posX = Math.random() * (containerWidth - itemWidth);
+            item.style.left = `${posX}px`;
+            item.style.top = '0px';
+            
+            // Add to game container
+            gameContainer.appendChild(item);
+            
+            // Add to items array
+            items.push({
+                element: item,
+                posX: posX,
+                posY: 0,
+                width: itemWidth,
+                height: itemWidth,
+                speed: itemSpeed + (Math.random() * 2), // Random speed
+                type: isOreo ? 'oreo' : 'bomb'
+            });
+        }
+        
+        // Update items positions
+        function updateItems() {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                item.posY += item.speed;
+                item.element.style.top = `${item.posY}px`;
+                
+                // Remove if out of bounds
+                if (item.posY > containerHeight) {
+                    if (item.element.parentNode === gameContainer) {
+                        gameContainer.removeChild(item.element);
+                    }
+                    items.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+        
+        // Check for collisions
+        function checkCollisions() {
+            const playerRect = player.getBoundingClientRect();
+            
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const itemRect = item.element.getBoundingClientRect();
+                
+                // Check collision
+                if (
+                    playerRect.left < itemRect.right &&
+                    playerRect.right > itemRect.left &&
+                    playerRect.top < itemRect.bottom &&
+                    playerRect.bottom > itemRect.top
+                ) {
+                    // Handle collision
+                    if (item.type === 'oreo') {
+                        score += 10;
+                        scoreDisplay.textContent = score;
+                    } else {
+                        score = Math.max(0, score - 5);
+                        scoreDisplay.textContent = score;
+                    }
+                    
+                    // Remove item
+                    try {
+                        gameContainer.removeChild(item.element);
+                    } catch (e) {
+                        console.log("Item already removed");
+                    }
+                    
+                    items.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+        
+        // Update timer
+        function updateTimer() {
+            gameTime++;
+            timerDisplay.textContent = maxGameTime - gameTime;
+            
+            if (gameTime >= maxGameTime) {
+                endGame();
+            }
+        }
+        
+        // End the game
+        function endGame() {
+            gameRunning = false;
+            clearInterval(itemGenerationInterval);
+            clearInterval(timerInterval);
+            clearInterval(difficultyInterval);
+            cancelAnimationFrame(animationFrame);
+            
+            // Clear all items
+            for (const item of items) {
+                try {
+                    if (item.element.parentNode === gameContainer) {
+                        gameContainer.removeChild(item.element);
+                    }
+                } catch (e) {
+                    console.log("Error removing item:", e);
+                }
+            }
+            items = [];
+            
+            // Show game over screen
+            finalScoreDisplay.textContent = `Your score: ${score}`;
+            
+            // Calculate progress percentage
+            const progressPercentage = Math.min(100, (score / 300) * 100);
+            progressBar.style.width = `${progressPercentage}%`;
+            
+            // Set result message
+            if (score >= 200) {
+                resultMessage.textContent = "Amazing! You're an Oreo catching expert!";
+            } else if (score >= 150) {
+                resultMessage.textContent = "Great job! You've got serious milk & cookie skills!";
+            } else if (score >= 100) {
+                resultMessage.textContent = "Good effort! Keep dunking those Oreos!";
+            } else {
+                resultMessage.textContent = "Nice try! Give it another shot!";
+            }
+            
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Reset game
+        function resetGame() {
+            gameOverScreen.style.display = 'none';
+            startGame();
+        }
+        
+        // Visit store (CTA action)
+        function visitStore() {
+            alert("This would normally navigate to the Oreo website.");
+        }
+        
+        // Mouse controls
+        function handleMouseMove(event) {
+            if (!gameRunning) return;
+            
+            const rect = gameContainer.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            
+            // Move player based on mouse position
+            movePlayer(mouseX - (playerWidth / 2));
+        }
+        
+        // Touch controls
+        function handleTouchMove(event) {
+            if (!gameRunning) return;
+            
+            event.preventDefault();
+            
+            const rect = gameContainer.getBoundingClientRect();
+            const touchX = event.touches[0].clientX - rect.left;
+            
+            // Move player based on touch position
+            movePlayer(touchX - (playerWidth / 2));
+        }
+        
+        // Keyboard controls
+        function handleKeyDown(event) {
+            if (!gameRunning) return;
+            
+            const moveStep = 20;
+            
+            if (event.key === 'ArrowLeft') {
+                movePlayer(playerPosition.x - moveStep);
+            } else if (event.key === 'ArrowRight') {
+                movePlayer(playerPosition.x + moveStep);
+            }
+        }
+        
+        // Common move player function
+        function movePlayer(newX) {
+            // Keep player within bounds
+            playerPosition.x = Math.max(0, Math.min(containerWidth - playerWidth, newX));
+            player.style.left = `${playerPosition.x}px`;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
